@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(for table_id in 1345 1347 1348 1349 1350)",
+      "Bash(do echo \"=== Table $table_id ===\")",
+      "Bash(done)",
+      "Bash(timeout:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(python:*)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2\")",
+      "Bash(npx tsc:*)",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(find \"C:\\Users\\AnasAkil\\desktop\\SEOBlackBox\\src\\app\\(dashboard)\" -type f -name \"*.tsx\")"
+    ]
+  }
+}
