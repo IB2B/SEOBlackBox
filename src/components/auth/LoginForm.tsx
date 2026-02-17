@@ -144,17 +144,6 @@ export function LoginForm() {
         </form>
       </Card>
 
-      {/* Footer */}
-      <p className="text-center text-xs text-muted-foreground mt-8">
-        By signing in, you agree to our{" "}
-        <Link href="#" className="text-primary hover:underline">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="#" className="text-primary hover:underline">
-          Privacy Policy
-        </Link>
-      </p>
     </div>
   );
 }

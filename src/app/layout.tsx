@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "SEOBlackBox - SEO Content Management",
   description: "Manage your SEO blog content with automated publishing",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
