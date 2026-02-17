@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { baserow } from "@/lib/baserow";
+import { logger } from "@/lib/logger";
 import type { DashboardStats } from "@/types";
 
 // GET /api/stats - Get dashboard statistics
@@ -34,11 +35,11 @@ export async function GET(request: Request) {
       data: stats,
     });
   } catch (error) {
-    console.error("Get stats error:", error);
+    logger.apiError("GET /api/stats", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get stats",
+        error: "Failed to get stats",
       },
       { status: 500 }
     );

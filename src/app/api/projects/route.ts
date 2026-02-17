@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { baserow } from "@/lib/baserow";
+import { logger } from "@/lib/logger";
 
 // GET /api/projects - List all projects
 export async function GET(request: Request) {
@@ -20,11 +21,11 @@ export async function GET(request: Request) {
       data: projects,
     });
   } catch (error) {
-    console.error("Get projects error:", error);
+    logger.apiError("GET /api/projects", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get projects",
+        error: "Failed to get projects",
       },
       { status: 500 }
     );

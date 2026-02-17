@@ -98,15 +98,8 @@ export function useBlogStream({
     if (!enabled) return;
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("No authentication token");
-        setIsConnected(false);
-        return;
-      }
-
       const response = await fetch(`/api/blogs/${blogId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
       if (!response.ok) {

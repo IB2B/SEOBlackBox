@@ -28,8 +28,18 @@ const FIELD_MAX_LENGTHS: Record<string, number> = {
   Location: 255,
 };
 
-// URL validation regex
-const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+/**
+ * Validate a URL string using the URL constructor for correctness.
+ * Only allows http and https protocols.
+ */
+function isValidUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -59,9 +69,11 @@ export function validateBlogField(field: string, value: unknown): { valid: boole
       return { valid: false, error: `${field} exceeds maximum length of ${maxLength} characters` };
     }
 
-    // URL fields
-    if (field.toLowerCase().includes("url") || field.toLowerCase().includes("image")) {
-      if (value && !URL_REGEX.test(value)) {
+    // URL fields - only validate fields that explicitly have "url" in the name
+    // Skip image fields - they can contain any value
+    if (field.toLowerCase().includes("url") && !field.toLowerCase().includes("image")) {
+      const trimmedValue = value.trim();
+      if (trimmedValue && !isValidUrl(trimmedValue)) {
         return { valid: false, error: `${field} must be a valid URL` };
       }
     }

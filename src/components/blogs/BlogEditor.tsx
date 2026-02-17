@@ -28,12 +28,14 @@ interface BlogEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }
 
 export function BlogEditor({
   content,
   onChange,
   placeholder = "Start writing your blog post...",
+  readOnly = false,
 }: BlogEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -58,8 +60,11 @@ export function BlogEditor({
       }),
     ],
     content,
+    editable: !readOnly,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      if (!readOnly) {
+        onChange(editor.getHTML());
+      }
     },
     editorProps: {
       attributes: {
@@ -96,8 +101,9 @@ export function BlogEditor({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      {/* Toolbar */}
+    <div className={`border rounded-lg overflow-hidden ${readOnly ? "opacity-70 bg-muted/20" : ""}`}>
+      {/* Toolbar - hidden in readOnly mode */}
+      {!readOnly && (
       <div
         className="flex flex-wrap gap-1 p-2 border-b bg-muted/50"
         role="toolbar"
@@ -284,6 +290,7 @@ export function BlogEditor({
           <Redo className="w-4 h-4" />
         </Button>
       </div>
+      )}
 
       {/* Editor Content */}
       <EditorContent editor={editor} className="min-h-[400px]" />

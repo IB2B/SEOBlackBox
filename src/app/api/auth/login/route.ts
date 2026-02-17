@@ -64,7 +64,6 @@ export async function POST(request: Request) {
       {
         success: true,
         data: {
-          token,
           user,
         },
       }

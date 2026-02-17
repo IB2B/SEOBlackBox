@@ -10,7 +10,7 @@ function getJwtSecret(): Uint8Array {
       throw new Error("CRITICAL: JWT_SECRET environment variable is required in production");
     }
     // Use dev-only fallback
-    console.warn("WARNING: Using default JWT secret. Set JWT_SECRET in production!");
+    // Dev-only fallback - production requires JWT_SECRET env var
     return new TextEncoder().encode("dev-only-secret-key-min-32-characters-long");
   }
 

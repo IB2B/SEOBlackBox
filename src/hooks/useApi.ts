@@ -33,19 +33,15 @@ export function useApi<T>({
       setError(null);
 
       try {
-        const token = localStorage.getItem("token");
         const headers: HeadersInit = {
           "Content-Type": "application/json",
         };
-
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
 
         const requestBody = overrideBody ?? body;
         const response = await fetch(url, {
           method,
           headers,
+          credentials: "include",
           body: requestBody ? JSON.stringify(requestBody) : undefined,
         });
 
@@ -174,6 +170,9 @@ export function useTracking() {
       totalThisMonth: number;
     };
     todayBlogs: import("@/types").Blog[];
+    yesterdayBlogs: import("@/types").Blog[];
+    thisWeekBlogs: import("@/types").Blog[];
+    thisMonthBlogs: import("@/types").Blog[];
     lastUpdated: string;
   }>({
     url: "/api/tracking",

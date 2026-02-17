@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { baserow } from "@/lib/baserow";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   try {
@@ -34,11 +35,11 @@ export async function GET(request: Request) {
       data: user,
     });
   } catch (error) {
-    console.error("Get user error:", error);
+    logger.apiError("GET /api/auth/me", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get user",
+        error: "Failed to get user",
       },
       { status: 500 }
     );

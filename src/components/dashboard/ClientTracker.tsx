@@ -17,6 +17,9 @@ import {
   Layers
 } from "lucide-react";
 
+// Slim blog type - only fields returned by optimized API
+type SlimBlog = Pick<Blog, "id" | "Keywords" | "TITLE" | "Project" | "STEPS" | "Language" | "Created_At">;
+
 interface ProjectData {
   name: string;
   total: number;
@@ -29,7 +32,7 @@ interface ProjectData {
   publish: number;
   inProgress: number;
   parking: number;
-  recentBlogs: Blog[];
+  recentBlogs: SlimBlog[];
 }
 
 interface TrackingData {
@@ -88,10 +91,10 @@ function ProjectCard({ project }: { project: ProjectData }) {
               <p className="text-[10px] text-muted-foreground mt-0.5">Auto Pilot</p>
             </div>
           </div>
-          <div className="flex-1 flex items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/10 border border-emerald-500/20">
-            <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex-1 flex items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-violet-500/15 to-purple-500/10 border border-violet-500/20">
+            <Send className="w-4 h-4 text-violet-600 dark:text-violet-400" />
             <div>
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-none">{project.publish}</p>
+              <p className="text-lg font-bold text-violet-600 dark:text-violet-400 leading-none">{project.publish}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">Publish</p>
             </div>
           </div>
@@ -279,14 +282,14 @@ export function ClientTracker({ data, isLoading, hideTopStats = false }: ClientT
               </div>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-lg hover:scale-[1.02] transition-all duration-300 border-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/5">
+          <Card className="hover:shadow-lg hover:scale-[1.02] transition-all duration-300 border-0 bg-gradient-to-br from-violet-500/10 to-purple-500/5">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg shadow-emerald-500/25">
+                <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl shadow-lg shadow-violet-500/25">
                   <Send className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">{data.totals.totalPublish}</p>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">{data.totals.totalPublish}</p>
                   <p className="text-sm text-muted-foreground">Publish</p>
                 </div>
               </div>

@@ -6,12 +6,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Card } from "@/components/ui/card";
 import { BlogTable } from "@/components/blogs/BlogTable";
-import { StatusBadge } from "@/components/blogs/StatusBadge";
 import { ROUTES, BLOG_STATUSES, PROJECTS } from "@/lib/constants";
-import { sanitizeHtml } from "@/lib/sanitize";
 import type { Blog } from "@/types";
 import {
   Plus,
@@ -23,153 +21,24 @@ import {
   SlidersHorizontal,
   X,
   Loader2,
-  Eye,
-  ArrowRight,
   Clock,
   CalendarDays,
   CalendarRange,
   Calendar,
   ArrowLeft,
-  Sparkles,
-  Target,
-  Layers,
+  Activity,
+  FolderOpen,
+  LayoutGrid,
 } from "lucide-react";
 
-// Blog Preview Modal Component
-function BlogPreviewModal({ blog, onClose }: { blog: Blog | null; onClose: () => void }) {
-  if (!blog) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="relative w-full max-w-2xl max-h-[80vh] overflow-auto bg-background rounded-2xl shadow-2xl border"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-xl">
-              <Eye className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Blog Preview</h3>
-              <p className="text-xs text-muted-foreground">{blog.Project} • {blog.Language}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatusBadge status={blog.STEPS} />
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Title & Meta */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Target className="w-3 h-3" />
-              <span>Keyword: {blog.Keywords}</span>
-            </div>
-            <h1 className="text-2xl font-bold">
-              {blog.TITLE || <span className="text-muted-foreground italic">No title yet</span>}
-            </h1>
-            {blog["META DESC"] && (
-              <p className="text-sm text-muted-foreground border-l-2 border-primary/30 pl-3">
-                {blog["META DESC"]}
-              </p>
-            )}
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
-              <p className="text-xs text-muted-foreground mb-1">Sections</p>
-              <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
-                {[blog["Section 1"], blog["Section 2"], blog["Section 3"], blog["Section 4"], blog["Section 5"], blog["Section 6"], blog["Section 7"]].filter(s => s && s.trim()).length}/7
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <p className="text-xs text-muted-foreground mb-1">Status</p>
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                {blog.BODY ? "Complete" : "In Progress"}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-muted-foreground mb-1">Location</p>
-              <p className="text-sm font-medium text-amber-600 dark:text-amber-400 truncate">
-                {blog.Location || "Not set"}
-              </p>
-            </div>
-          </div>
-
-          {/* Introduction Preview */}
-          {blog.INTRODUCTION && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="w-4 h-4 text-primary" />
-                Introduction
-              </h4>
-              <div
-                className="text-sm text-muted-foreground line-clamp-4 prose prose-sm dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(blog.INTRODUCTION) }}
-              />
-            </div>
-          )}
-
-          {/* TL;DR */}
-          {blog["TL;DR"] && (
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                TL;DR
-              </h4>
-              <div
-                className="text-sm text-muted-foreground prose prose-sm dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(blog["TL;DR"]) }}
-              />
-            </div>
-          )}
-
-          {/* Featured Image */}
-          {blog["images URL"] && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Featured Image</h4>
-              <img
-                src={blog["images URL"]}
-                alt="Featured"
-                className="w-full h-48 object-cover rounded-xl border"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="sticky bottom-0 flex items-center justify-between p-4 border-t bg-background/95 backdrop-blur-sm">
-          <Button variant="outline" onClick={onClose}>
-            Close Preview
-          </Button>
-          <div className="flex gap-2">
-            <Link href={ROUTES.BLOG_VIEW(blog.id)}>
-              <Button variant="outline">
-                <Eye className="w-4 h-4 mr-2" />
-                Full View
-              </Button>
-            </Link>
-            <Link href={ROUTES.BLOG_EDIT(blog.id)}>
-              <Button>
-                Edit Blog
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Date filter options for dropdown
+const DATE_FILTER_OPTIONS = [
+  { value: "", label: "All Time" },
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+];
 
 // Date filter labels
 const DATE_FILTER_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
@@ -196,7 +65,6 @@ function BlogsContent() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(showAll ? 200 : 25);
   const [showFilters, setShowFilters] = useState(false);
-  const [previewBlog, setPreviewBlog] = useState<Blog | null>(null);
   const [pagination, setPagination] = useState({
     count: 0,
     hasNext: false,
@@ -211,13 +79,12 @@ function BlogsContent() {
     setPage(1);
   }, [urlProject, urlSearch, urlDateFilter]);
 
-  const activeFiltersCount = [status, project].filter(Boolean).length;
+  const activeFiltersCount = [status, project, dateFilter].filter(Boolean).length;
   const dateFilterInfo = dateFilter ? DATE_FILTER_LABELS[dateFilter] : null;
 
   const fetchBlogs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (status) params.set("status", status);
@@ -227,7 +94,7 @@ function BlogsContent() {
       params.set("size", pageSize.toString());
 
       const response = await fetch(`/api/blogs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       const data = await response.json();
 
@@ -240,7 +107,7 @@ function BlogsContent() {
         });
       }
     } catch (error) {
-      console.error("Error fetching blogs:", error);
+      // Error handled by state
     } finally {
       setIsLoading(false);
     }
@@ -256,10 +123,9 @@ function BlogsContent() {
     toast.loading("Deleting blog...", { id: "delete-blog" });
 
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(`/api/blogs/${blogId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       const data = await response.json();
 
@@ -270,7 +136,6 @@ function BlogsContent() {
         toast.error(data.error || "Failed to delete blog", { id: "delete-blog" });
       }
     } catch (error) {
-      console.error("Error deleting blog:", error);
       toast.error("Failed to delete blog", { id: "delete-blog" });
     }
   };
@@ -284,14 +149,14 @@ function BlogsContent() {
   const clearFilters = () => {
     setStatus("");
     setProject("");
+    setDateFilter("");
     setPage(1);
+    // Also clear URL params
+    router.push(ROUTES.BLOGS);
   };
 
   return (
     <div className="space-y-6">
-      {/* Blog Preview Modal */}
-      <BlogPreviewModal blog={previewBlog} onClose={() => setPreviewBlog(null)} />
-
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
@@ -343,7 +208,7 @@ function BlogsContent() {
       </div>
 
       {/* Search & Filters */}
-      <Card variant="glass" className="p-4">
+      <Card variant="glass" className="p-4 overflow-visible relative z-20">
         <div className="flex flex-col gap-4">
           {/* Search Bar */}
           <form onSubmit={handleSearch} className="flex gap-2">
@@ -381,56 +246,80 @@ function BlogsContent() {
               <Filter className="w-4 h-4" />
               Filters:
             </div>
-            <Select
+            <Dropdown
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
+              onChange={(val) => {
+                setStatus(val);
                 setPage(1);
               }}
+              placeholder="All Status"
+              icon={<Activity className="w-4 h-4" />}
+              dropdownSize="sm"
               className="w-44"
-            >
-              <option value="">All Status</option>
-              {BLOG_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </Select>
-            <Select
+              options={[
+                { value: "", label: "All Status" },
+                ...BLOG_STATUSES.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                })),
+              ]}
+            />
+            <Dropdown
               value={project}
-              onChange={(e) => {
-                setProject(e.target.value);
+              onChange={(val) => {
+                setProject(val);
                 setPage(1);
               }}
-              className="w-44"
-            >
-              <option value="">All Projects</option>
-              {PROJECTS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
-            <Select
+              placeholder="All Projects"
+              icon={<FolderOpen className="w-4 h-4" />}
+              dropdownSize="sm"
+              className="w-48"
+              options={[
+                { value: "", label: "All Projects" },
+                ...PROJECTS.map((p) => ({
+                  value: p.value,
+                  label: p.label,
+                })),
+              ]}
+            />
+            <Dropdown
+              value={dateFilter}
+              onChange={(val) => {
+                setDateFilter(val);
+                setPage(1);
+              }}
+              placeholder="All Time"
+              icon={<Calendar className="w-4 h-4" />}
+              dropdownSize="sm"
+              className="w-40"
+              options={DATE_FILTER_OPTIONS.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+              }))}
+            />
+            <Dropdown
               value={pageSize.toString()}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
+              onChange={(val) => {
+                setPageSize(Number(val));
                 setPage(1);
               }}
-              className="w-32"
-            >
-              <option value="25">25 / page</option>
-              <option value="50">50 / page</option>
-              <option value="100">100 / page</option>
-              <option value="200">All</option>
-            </Select>
+              icon={<LayoutGrid className="w-4 h-4" />}
+              dropdownSize="sm"
+              className="w-36"
+              options={[
+                { value: "25", label: "25 / page" },
+                { value: "50", label: "50 / page" },
+                { value: "100", label: "100 / page" },
+                { value: "200", label: "All" },
+              ]}
+            />
 
             {activeFiltersCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground hover:bg-red-500/10 hover:text-red-600"
               >
                 <X className="w-4 h-4 mr-1" />
                 Clear filters
@@ -440,70 +329,92 @@ function BlogsContent() {
 
           {/* Mobile Filters */}
           {showFilters && (
-            <div className="md:hidden space-y-3 pt-3 border-t border-border/50 animate-slide-down">
+            <div className="md:hidden space-y-3 pt-4 border-t border-border/50 animate-slide-down">
               <div className="grid grid-cols-2 gap-3">
-                <Select
+                <Dropdown
                   value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
+                  onChange={(val) => {
+                    setStatus(val);
                     setPage(1);
                   }}
-                >
-                  <option value="">All Status</option>
-                  {BLOG_STATUSES.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </Select>
-                <Select
+                  placeholder="All Status"
+                  icon={<Activity className="w-4 h-4" />}
+                  dropdownSize="sm"
+                  options={[
+                    { value: "", label: "All Status" },
+                    ...BLOG_STATUSES.map((s) => ({
+                      value: s.value,
+                      label: s.label,
+                    })),
+                  ]}
+                />
+                <Dropdown
                   value={project}
-                  onChange={(e) => {
-                    setProject(e.target.value);
+                  onChange={(val) => {
+                    setProject(val);
                     setPage(1);
                   }}
-                >
-                  <option value="">All Projects</option>
-                  {PROJECTS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </Select>
+                  placeholder="All Projects"
+                  icon={<FolderOpen className="w-4 h-4" />}
+                  dropdownSize="sm"
+                  options={[
+                    { value: "", label: "All Projects" },
+                    ...PROJECTS.map((p) => ({
+                      value: p.value,
+                      label: p.label,
+                    })),
+                  ]}
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <Select
+              <div className="grid grid-cols-2 gap-3">
+                <Dropdown
+                  value={dateFilter}
+                  onChange={(val) => {
+                    setDateFilter(val);
+                    setPage(1);
+                  }}
+                  placeholder="All Time"
+                  icon={<Calendar className="w-4 h-4" />}
+                  dropdownSize="sm"
+                  options={DATE_FILTER_OPTIONS.map((opt) => ({
+                    value: opt.value,
+                    label: opt.label,
+                  }))}
+                />
+                <Dropdown
                   value={pageSize.toString()}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
+                  onChange={(val) => {
+                    setPageSize(Number(val));
                     setPage(1);
                   }}
-                  className="w-32"
-                >
-                  <option value="25">25 / page</option>
-                  <option value="50">50 / page</option>
-                  <option value="100">100 / page</option>
-                  <option value="200">All</option>
-                </Select>
-                {activeFiltersCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="text-muted-foreground"
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Clear
-                  </Button>
-                )}
+                  icon={<LayoutGrid className="w-4 h-4" />}
+                  dropdownSize="sm"
+                  options={[
+                    { value: "25", label: "25 / page" },
+                    { value: "50", label: "50 / page" },
+                    { value: "100", label: "100 / page" },
+                    { value: "200", label: "All" },
+                  ]}
+                />
               </div>
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Clear all filters
+                </Button>
+              )}
             </div>
           )}
         </div>
       </Card>
 
       {/* Table */}
-      <BlogTable blogs={blogs} isLoading={isLoading} onDelete={handleDelete} onPreview={setPreviewBlog} />
+      <BlogTable blogs={blogs} isLoading={isLoading} onDelete={handleDelete} />
 
       {/* Pagination */}
       {pagination.count > 0 && (

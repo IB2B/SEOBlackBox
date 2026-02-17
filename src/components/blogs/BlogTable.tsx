@@ -26,11 +26,11 @@ interface BlogTableProps {
   blogs: Blog[];
   isLoading: boolean;
   onDelete: (blogId: number) => void;
-  onPreview?: (blog: Blog) => void;
 }
 
-const BlogRow = memo(function BlogRow({ blog, onDelete, onPreview, index }: { blog: Blog; onDelete: (id: number) => void; onPreview?: (blog: Blog) => void; index: number }) {
+const BlogRow = memo(function BlogRow({ blog, onDelete, index }: { blog: Blog; onDelete: (id: number) => void; index: number }) {
   const [showActions, setShowActions] = useState(false);
+  const isPublished = blog.STEPS === "PUBLISH" || blog.STEPS === "COMPLETED";
 
   return (
     <div
@@ -104,47 +104,39 @@ const BlogRow = memo(function BlogRow({ blog, onDelete, onPreview, index }: { bl
       <div className="flex items-center gap-1">
         {/* Quick Actions - Always Visible */}
         <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onPreview ? (
+          <Link href={ROUTES.BLOG_VIEW(blog.id)}>
             <Button
               variant="ghost"
               size="icon-sm"
               className="hover:bg-primary/10 hover:text-primary"
-              title="Quick Preview"
-              onClick={() => onPreview(blog)}
+              title="View Details"
             >
               <Eye className="w-4 h-4" />
             </Button>
-          ) : (
-            <Link href={ROUTES.BLOG_VIEW(blog.id)}>
+          </Link>
+          {!isPublished && (
+            <>
+              <Link href={ROUTES.BLOG_EDIT(blog.id)}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="hover:bg-blue-500/10 hover:text-blue-500"
+                  title="Edit"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="hover:bg-primary/10 hover:text-primary"
-                title="Preview"
+                className="hover:bg-red-500/10 hover:text-red-500"
+                title="Delete"
+                onClick={() => onDelete(blog.id)}
               >
-                <Eye className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </Button>
-            </Link>
+            </>
           )}
-          <Link href={ROUTES.BLOG_EDIT(blog.id)}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="hover:bg-blue-500/10 hover:text-blue-500"
-              title="Edit"
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="hover:bg-red-500/10 hover:text-red-500"
-            title="Delete"
-            onClick={() => onDelete(blog.id)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
         </div>
 
         {/* Mobile Actions Menu */}
@@ -164,45 +156,36 @@ const BlogRow = memo(function BlogRow({ blog, onDelete, onPreview, index }: { bl
                 onClick={() => setShowActions(false)}
               />
               <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border/50 rounded-xl shadow-xl z-20 overflow-hidden animate-scale-in">
-                {onPreview ? (
-                  <button
-                    onClick={() => {
-                      onPreview(blog);
-                      setShowActions(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Quick Preview
-                  </button>
-                ) : (
-                  <Link
-                    href={ROUTES.BLOG_VIEW(blog.id)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
-                    onClick={() => setShowActions(false)}
-                  >
-                    <Eye className="w-4 h-4" />
-                    Preview
-                  </Link>
-                )}
                 <Link
-                  href={ROUTES.BLOG_EDIT(blog.id)}
+                  href={ROUTES.BLOG_VIEW(blog.id)}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
                   onClick={() => setShowActions(false)}
                 >
-                  <Edit className="w-4 h-4" />
-                  Edit
+                  <Eye className="w-4 h-4" />
+                  View Details
                 </Link>
-                <button
-                  onClick={() => {
-                    onDelete(blog.id);
-                    setShowActions(false);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
+                {!isPublished && (
+                  <>
+                    <Link
+                      href={ROUTES.BLOG_EDIT(blog.id)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted transition-colors"
+                      onClick={() => setShowActions(false)}
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => {
+                        onDelete(blog.id);
+                        setShowActions(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -253,7 +236,7 @@ function LoadingSkeleton() {
   );
 }
 
-export function BlogTable({ blogs, isLoading, onDelete, onPreview }: BlogTableProps) {
+export function BlogTable({ blogs, isLoading, onDelete }: BlogTableProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -312,7 +295,7 @@ export function BlogTable({ blogs, isLoading, onDelete, onPreview }: BlogTablePr
       {/* Table Body */}
       <div className="divide-y divide-border/30">
         {blogs.map((blog, index) => (
-          <BlogRow key={blog.id} blog={blog} onDelete={onDelete} onPreview={onPreview} index={index} />
+          <BlogRow key={blog.id} blog={blog} onDelete={onDelete} index={index} />
         ))}
       </div>
 

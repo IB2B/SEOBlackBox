@@ -15,7 +15,7 @@ import { StatusBadge } from "@/components/blogs/StatusBadge";
 import { useBlogStream } from "@/hooks/useBlogStream";
 import { ROUTES, USER_EDITABLE_STATUSES, BLOG_STATUSES } from "@/lib/constants";
 import type { Blog, BlogStatus } from "@/types";
-import { ArrowLeft, Save, Send, Loader2, ChevronDown, ChevronUp, Radio, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Send, Loader2, ChevronDown, ChevronUp, Radio, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SectionEditorProps {
@@ -23,17 +23,19 @@ interface SectionEditorProps {
   content: string;
   onChange: (content: string) => void;
   defaultOpen?: boolean;
+  disabled?: boolean;
 }
 
-function SectionEditor({ title, content, onChange, defaultOpen = false }: SectionEditorProps) {
+function SectionEditor({ title, content, onChange, defaultOpen = false, disabled = false }: SectionEditorProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen || !!content);
 
   return (
-    <div className="border rounded-lg">
+    <div className={cn("border rounded-lg", disabled && "opacity-60")}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+        disabled={disabled}
       >
         <span className="font-medium">{title}</span>
         <div className="flex items-center gap-2">
@@ -49,7 +51,7 @@ function SectionEditor({ title, content, onChange, defaultOpen = false }: Sectio
       </button>
       {isOpen && (
         <div className="p-4 pt-0 border-t">
-          <BlogEditor content={content} onChange={onChange} placeholder={`Enter ${title.toLowerCase()} content...`} />
+          <BlogEditor content={content} onChange={disabled ? () => {} : onChange} placeholder={`Enter ${title.toLowerCase()} content...`} readOnly={disabled} />
         </div>
       )}
     </div>
@@ -214,13 +216,12 @@ export default function EditBlogPage() {
       if (!imagesUrl.trim()) return; // Don't save empty URLs
 
       try {
-        const token = localStorage.getItem("token");
         const response = await fetch(`/api/blogs/${blogId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
+          credentials: "include",
           body: JSON.stringify({
             "images URL": imagesUrl,
             "image 1": imagesUrl,
@@ -233,7 +234,7 @@ export default function EditBlogPage() {
           prevImageUrlRef.current = imagesUrl;
         }
       } catch (err) {
-        console.error("Failed to auto-save image URL:", err);
+        // Auto-save failed silently
       }
     }, 1000);
 
@@ -252,13 +253,12 @@ export default function EditBlogPage() {
     toast.loading(newStatus === "PUBLISH" ? "Publishing..." : "Saving...", { id: toastId });
 
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(`/api/blogs/${blogId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           TITLE: title,
           Permalink: permalink,
@@ -274,9 +274,9 @@ export default function EditBlogPage() {
           "Section 6": section6,
           "Section 7": section7,
           FAQ: faq,
-          "images URL": imagesUrl,
-          "image 1": imagesUrl,
-          "image 3": image3,
+          "images URL": imagesUrl || null,
+          "image 1": imagesUrl || null,
+          "image 3": image3 || null,
           STEPS: newStatus || steps,
           "Needs Approval?": needsApproval,
           "Article Category": articleCategory,
@@ -306,6 +306,7 @@ export default function EditBlogPage() {
   };
 
   const canEdit = (USER_EDITABLE_STATUSES as readonly string[]).includes(steps);
+  const isPublished = steps === "PUBLISH";
 
   if (isLoading) {
     return (
@@ -362,36 +363,57 @@ export default function EditBlogPage() {
             {isConnected ? "Live" : "Offline"}
           </div>
           <StatusBadge status={blog?.STEPS || "PARKING"} />
-          <Button
-            variant="outline"
-            onClick={() => handleSave()}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Save
-          </Button>
-          {blog?.STEPS !== "COMPLETED" && (
-            <Button
-              onClick={() => handleSave("PUBLISH")}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4 mr-2" />
+          {!isPublished && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => handleSave()}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save
+              </Button>
+              {blog?.STEPS !== "COMPLETED" && (
+                <Button
+                  onClick={() => handleSave("PUBLISH")}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Publish
+                </Button>
               )}
-              Publish
-            </Button>
+            </>
           )}
         </div>
       </div>
 
+      {/* Published banner - shows when blog is already published */}
+      {isPublished && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-fuchsia-500/10 border border-violet-500/20">
+          <div className="p-2 rounded-xl bg-violet-500/20">
+            <Lock className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-violet-900 dark:text-violet-100">
+              Blog is Published
+            </h3>
+            <p className="text-sm text-violet-700 dark:text-violet-300">
+              This blog has been published and cannot be edited. Create a new blog to make changes.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Blog finished badge - shows when BODY is filled */}
-      {blog?.BODY && blog.BODY.trim() !== "" && (
+      {!isPublished && blog?.BODY && blog.BODY.trim() !== "" && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 via-green-500/5 to-teal-500/10 border border-emerald-500/20">
           <div className="p-2 rounded-xl bg-emerald-500/20">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -438,6 +460,7 @@ export default function EditBlogPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Enter blog title"
+                  disabled={isPublished}
                 />
               </div>
 
@@ -448,6 +471,7 @@ export default function EditBlogPage() {
                   value={permalink}
                   onChange={(e) => setPermalink(e.target.value)}
                   placeholder="page-permalink"
+                  disabled={isPublished}
                 />
               </div>
 
@@ -459,6 +483,7 @@ export default function EditBlogPage() {
                   onChange={(e) => setMetaDesc(e.target.value)}
                   placeholder="SEO meta description"
                   rows={3}
+                  disabled={isPublished}
                 />
                 <p className="text-xs text-muted-foreground">
                   {metaDesc.length}/160 characters
@@ -475,12 +500,12 @@ export default function EditBlogPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>TL;DR</Label>
-                <BlogEditor content={tldr} onChange={setTldr} placeholder="Brief summary..." />
+                <BlogEditor content={tldr} onChange={isPublished ? () => {} : setTldr} placeholder="Brief summary..." readOnly={isPublished} />
               </div>
 
               <div className="space-y-2">
                 <Label>Introduction</Label>
-                <BlogEditor content={introduction} onChange={setIntroduction} placeholder="Introduction content..." />
+                <BlogEditor content={introduction} onChange={isPublished ? () => {} : setIntroduction} placeholder="Introduction content..." readOnly={isPublished} />
               </div>
             </CardContent>
           </Card>
@@ -491,13 +516,13 @@ export default function EditBlogPage() {
               <CardTitle>Content Sections</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <SectionEditor title="Section 1" content={section1} onChange={setSection1} defaultOpen />
-              <SectionEditor title="Section 2" content={section2} onChange={setSection2} />
-              <SectionEditor title="Section 3" content={section3} onChange={setSection3} />
-              <SectionEditor title="Section 4" content={section4} onChange={setSection4} />
-              <SectionEditor title="Section 5" content={section5} onChange={setSection5} />
-              <SectionEditor title="Section 6" content={section6} onChange={setSection6} />
-              <SectionEditor title="Section 7" content={section7} onChange={setSection7} />
+              <SectionEditor title="Section 1" content={section1} onChange={setSection1} defaultOpen disabled={isPublished} />
+              <SectionEditor title="Section 2" content={section2} onChange={setSection2} disabled={isPublished} />
+              <SectionEditor title="Section 3" content={section3} onChange={setSection3} disabled={isPublished} />
+              <SectionEditor title="Section 4" content={section4} onChange={setSection4} disabled={isPublished} />
+              <SectionEditor title="Section 5" content={section5} onChange={setSection5} disabled={isPublished} />
+              <SectionEditor title="Section 6" content={section6} onChange={setSection6} disabled={isPublished} />
+              <SectionEditor title="Section 7" content={section7} onChange={setSection7} disabled={isPublished} />
             </CardContent>
           </Card>
 
@@ -507,7 +532,7 @@ export default function EditBlogPage() {
               <CardTitle>FAQ</CardTitle>
             </CardHeader>
             <CardContent>
-              <BlogEditor content={faq} onChange={setFaq} placeholder="Frequently asked questions..." />
+              <BlogEditor content={faq} onChange={isPublished ? () => {} : setFaq} placeholder="Frequently asked questions..." readOnly={isPublished} />
             </CardContent>
           </Card>
 
@@ -517,7 +542,7 @@ export default function EditBlogPage() {
               <CardTitle>Conclusion</CardTitle>
             </CardHeader>
             <CardContent>
-              <BlogEditor content={conclusion} onChange={setConclusion} placeholder="Conclusion content..." />
+              <BlogEditor content={conclusion} onChange={isPublished ? () => {} : setConclusion} placeholder="Conclusion content..." readOnly={isPublished} />
             </CardContent>
           </Card>
         </div>
@@ -533,7 +558,7 @@ export default function EditBlogPage() {
               <Select
                 value={steps}
                 onChange={(e) => setSteps(e.target.value as BlogStatus)}
-                disabled={!canEdit}
+                disabled={!canEdit || isPublished}
               >
                 {BLOG_STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -542,7 +567,10 @@ export default function EditBlogPage() {
                 ))}
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                Setting STEPS to &quot;PUBLISH&quot; will trigger n8n to publish to WordPress.
+                {isPublished
+                  ? "This blog has been published and the status cannot be changed."
+                  : "Setting STEPS to \"PUBLISH\" will trigger n8n to publish to WordPress."
+                }
               </p>
             </CardContent>
           </Card>
@@ -560,6 +588,7 @@ export default function EditBlogPage() {
                   value={articleCategory}
                   onChange={(e) => setArticleCategory(e.target.value)}
                   placeholder="e.g., Technology, Business"
+                  disabled={isPublished}
                 />
               </div>
 
@@ -570,8 +599,9 @@ export default function EditBlogPage() {
                   checked={needsApproval}
                   onChange={(e) => setNeedsApproval(e.target.checked)}
                   className="rounded border-gray-300"
+                  disabled={isPublished}
                 />
-                <Label htmlFor="needsApproval" className="cursor-pointer">
+                <Label htmlFor="needsApproval" className={cn("cursor-pointer", isPublished && "opacity-50")}>
                   Needs Approval?
                 </Label>
               </div>
@@ -591,6 +621,7 @@ export default function EditBlogPage() {
                   value={imagesUrl}
                   onChange={(e) => setImagesUrl(e.target.value)}
                   placeholder="https://example.com/image.jpg"
+                  disabled={isPublished}
                 />
               </div>
               {imagesUrl && (
@@ -610,6 +641,7 @@ export default function EditBlogPage() {
                   value={image3}
                   onChange={(e) => setImage3(e.target.value)}
                   placeholder="https://example.com/image3.jpg"
+                  disabled={isPublished}
                 />
               </div>
               {image3 && (

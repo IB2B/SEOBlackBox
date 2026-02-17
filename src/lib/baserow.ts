@@ -8,6 +8,7 @@ import type {
   BlogStatus,
   ProjectType,
 } from "@/types";
+import { logger } from "./logger";
 
 const BASEROW_API_URL = process.env.BASEROW_API_URL || "https://dayta.intelligentb2b.com";
 const BASEROW_API_TOKEN = process.env.BASEROW_API_TOKEN || "";
@@ -66,7 +67,7 @@ class BaserowClient {
       } else {
         errorMessage = JSON.stringify(errorData);
       }
-      console.error("Baserow API error:", errorMessage, errorData);
+      logger.error("Baserow API error: " + errorMessage);
       throw new Error(errorMessage);
     }
 
@@ -362,7 +363,7 @@ class BaserowClient {
       Location: data.Location || "",
     };
 
-    console.log("Creating blog with payload:", JSON.stringify(payload, null, 2));
+    logger.debug("Creating blog with payload:", JSON.stringify(payload, null, 2));
 
     const blog = await this.createRow<BaserowBlog>(TABLES.BLOGS, payload);
     return this.transformBlog(blog);

@@ -9,7 +9,7 @@ import { BlogPreviewEditable } from "@/components/blogs/BlogPreviewEditable";
 import { StatusBadge } from "@/components/blogs/StatusBadge";
 import { ROUTES } from "@/lib/constants";
 import type { Blog, BlogStatus } from "@/types";
-import { ArrowLeft, Save, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export default function ViewBlogPage() {
   const params = useParams();
@@ -22,9 +22,8 @@ export default function ViewBlogPage() {
 
   const fetchBlog = useCallback(async () => {
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(`/api/blogs/${blogId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       const data = await response.json();
 
@@ -52,13 +51,12 @@ export default function ViewBlogPage() {
     toast.loading(newStatus === "PUBLISH" ? "Publishing..." : "Saving...", { id: toastId });
 
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch(`/api/blogs/${blogId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           ...updatedBlog,
           STEPS: newStatus || blog?.STEPS,
@@ -107,6 +105,8 @@ export default function ViewBlogPage() {
 
   if (!blog) return null;
 
+  const isPublished = blog.STEPS === "PUBLISH" || blog.STEPS === "COMPLETED";
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -118,7 +118,7 @@ export default function ViewBlogPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">Preview & Edit</h1>
+            <h1 className="text-2xl font-bold">{isPublished ? 'Preview' : 'Preview & Edit'}</h1>
             <p className="text-muted-foreground">
               Keyword: {blog.Keywords} | Project: {blog.Project}
             </p>
@@ -150,6 +150,7 @@ export default function ViewBlogPage() {
         blog={blog}
         onSave={handleSave}
         isSaving={isSaving}
+        readOnly={isPublished}
       />
     </div>
   );

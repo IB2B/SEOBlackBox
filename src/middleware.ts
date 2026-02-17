@@ -22,12 +22,50 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Get token from HttpOnly cookie (primary) or Authorization header (fallback for external API clients)
+  const cookieToken = request.cookies.get("auth_token")?.value;
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = cookieToken || bearerToken;
+
   // Check for API routes
   if (pathname.startsWith("/api/")) {
-    const authHeader = request.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    // CSRF protection for cookie-based auth on mutating requests in production.
+    // Bearer token requests (external API clients) are not vulnerable to CSRF.
+    const method = request.method.toUpperCase();
+    const isCookieAuth = !!cookieToken && !bearerToken;
+    if (isCookieAuth && method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      if (process.env.NODE_ENV === "production") {
+        const origin = request.headers.get("origin");
+        const referer = request.headers.get("referer");
+        const host = request.headers.get("host");
+
+        if (!origin && !referer) {
+          return NextResponse.json(
+            { success: false, error: "Forbidden" },
+            { status: 403 }
+          );
+        }
+
+        const checkHost = origin || referer;
+        if (checkHost) {
+          try {
+            const parsedHost = new URL(checkHost).host;
+            if (parsedHost !== host) {
+              return NextResponse.json(
+                { success: false, error: "Forbidden" },
+                { status: 403 }
+              );
+            }
+          } catch {
+            return NextResponse.json(
+              { success: false, error: "Forbidden" },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
 
     if (!token) {
       return NextResponse.json(
@@ -57,8 +95,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check for dashboard routes (protected pages)
-  const token = request.cookies.get("token")?.value;
-
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -66,7 +102,7 @@ export async function middleware(request: NextRequest) {
   const payload = await verifyToken(token);
   if (!payload) {
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("token");
+    response.cookies.delete("auth_token");
     return response;
   }
 

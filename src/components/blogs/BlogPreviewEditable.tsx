@@ -44,6 +44,7 @@ interface BlogPreviewEditableProps {
   blog: Blog;
   onSave: (updatedBlog: Partial<Blog>, newStatus?: BlogStatus) => Promise<void>;
   isSaving: boolean;
+  readOnly?: boolean;
 }
 
 type EditableSection =
@@ -85,7 +86,7 @@ function getImageUrl(url: string): string {
   return url;
 }
 
-export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEditableProps) {
+export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }: BlogPreviewEditableProps) {
   const [editingSection, setEditingSection] = useState<EditableSection>(null);
   const [editContent, setEditContent] = useState("");
   const [imageError, setImageError] = useState(false);
@@ -139,6 +140,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
   }), [content]);
 
   const startEditing = (section: EditableSection, currentContent: string) => {
+    if (readOnly) return;
     setEditingSection(section);
     setEditContent(currentContent);
   };
@@ -217,20 +219,22 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
     if (!parsedHtml) return null;
 
     return (
-      <div className="mb-8 group relative">
+      <div className={`mb-8 ${readOnly ? '' : 'group'} relative`}>
         {label && <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>}
         <div
-          className="prose prose-sm max-w-none cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors"
+          className={`prose prose-sm max-w-none rounded-lg p-2 -m-2 transition-colors ${readOnly ? '' : 'cursor-pointer hover:bg-muted/30'}`}
           dangerouslySetInnerHTML={{ __html: parsedHtml }}
           onClick={() => startEditing(sectionKey, sectionContent)}
         />
-        <button
-          onClick={() => startEditing(sectionKey, sectionContent)}
-          className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
-          title="Edit section"
-        >
-          <Edit2 className="w-3 h-3" />
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => startEditing(sectionKey, sectionContent)}
+            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
+            title="Edit section"
+          >
+            <Edit2 className="w-3 h-3" />
+          </button>
+        )}
       </div>
     );
   };
@@ -249,42 +253,46 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
   return (
     <div className="space-y-6">
       {/* Save Buttons */}
-      <div className="flex justify-end gap-2 sticky top-0 z-10 bg-background py-2">
-        <Button
-          variant="outline"
-          onClick={() => handleSaveAll()}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
-          Save Changes
-        </Button>
-        {blog.STEPS !== "COMPLETED" && (
+      {!readOnly && (
+        <div className="flex justify-end gap-2 sticky top-0 z-10 bg-background py-2">
           <Button
-            onClick={() => handleSaveAll("PUBLISH")}
+            variant="outline"
+            onClick={() => handleSaveAll()}
             disabled={isSaving}
           >
             {isSaving ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Send className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4 mr-2" />
             )}
-            Publish
+            Save Changes
           </Button>
-        )}
-      </div>
+          {blog.STEPS !== "COMPLETED" && (
+            <Button
+              onClick={() => handleSaveAll("PUBLISH")}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              Publish
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Preview Card */}
       <div className="bg-white dark:bg-card border rounded-lg overflow-hidden">
         {/* Header */}
         <div className="border-b p-4 bg-muted/30">
-          <p className="text-sm text-muted-foreground mb-1">Preview & Edit</p>
-          <p className="text-xs text-muted-foreground">
-            Click on any section to edit it inline
-          </p>
+          <p className="text-sm text-muted-foreground mb-1">{readOnly ? 'Preview' : 'Preview & Edit'}</p>
+          {!readOnly && (
+            <p className="text-xs text-muted-foreground">
+              Click on any section to edit it inline
+            </p>
+          )}
         </div>
 
         {/* Featured Image - at the top */}
@@ -330,21 +338,23 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
                 key={content.imageUrl}
                 src={content.imageUrl}
                 alt={content.title || "Featured image"}
-                className="w-full h-auto max-h-[400px] object-cover cursor-pointer"
+                className={`w-full h-auto max-h-[400px] object-cover ${readOnly ? '' : 'cursor-pointer'}`}
                 onError={() => setImageError(true)}
                 onClick={() => startEditing("image", content.imageUrl)}
               />
-              <button
-                onClick={() => startEditing("image", content.imageUrl)}
-                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
-                title="Edit image"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => startEditing("image", content.imageUrl)}
+                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
+                  title="Edit image"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
             </>
           ) : (
             <div
-              className="w-full h-[200px] bg-gradient-to-br from-muted to-muted/50 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-muted/60 transition-colors"
+              className={`w-full h-[200px] bg-gradient-to-br from-muted to-muted/50 flex flex-col items-center justify-center gap-3 ${readOnly ? '' : 'cursor-pointer hover:bg-muted/60'} transition-colors`}
               onClick={() => startEditing("image", content.imageUrl)}
             >
               <div className="p-4 rounded-full bg-muted-foreground/10">
@@ -353,7 +363,9 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
               <p className="text-sm text-muted-foreground">
                 {content.imageUrl && imageError ? "Image failed to load" : "No featured image"}
               </p>
-              <p className="text-xs text-muted-foreground">Click to {content.imageUrl ? "edit" : "add"} image URL</p>
+              {!readOnly && (
+                <p className="text-xs text-muted-foreground">Click to {content.imageUrl ? "edit" : "add"} image URL</p>
+              )}
               {content.imageUrl && imageError && (
                 <p className="text-xs text-red-400 max-w-md truncate px-4">
                   URL: {content.imageUrl.substring(0, 50)}...
@@ -390,20 +402,22 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
               </div>
             </div>
           ) : (
-            <div className="group relative mb-4">
+            <div className={`${readOnly ? '' : 'group'} relative mb-4`}>
               <h1
-                className="text-3xl font-bold cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors"
+                className={`text-3xl font-bold rounded-lg p-2 -m-2 transition-colors ${readOnly ? '' : 'cursor-pointer hover:bg-muted/30'}`}
                 onClick={() => startEditing("title", content.title)}
               >
                 {content.title || "Untitled Post"}
               </h1>
-              <button
-                onClick={() => startEditing("title", content.title)}
-                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
-                title="Edit title"
-              >
-                <Type className="w-3 h-3" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => startEditing("title", content.title)}
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
+                  title="Edit title"
+                >
+                  <Type className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
 
@@ -432,20 +446,22 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
               </div>
             </div>
           ) : (
-            <div className="group relative mb-6">
+            <div className={`${readOnly ? '' : 'group'} relative mb-6`}>
               <p
-                className="text-lg text-muted-foreground italic cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors"
+                className={`text-lg text-muted-foreground italic rounded-lg p-2 -m-2 transition-colors ${readOnly ? '' : 'cursor-pointer hover:bg-muted/30'}`}
                 onClick={() => startEditing("metaDesc", content.metaDesc)}
               >
-                {content.metaDesc || "Click to add meta description..."}
+                {content.metaDesc || (readOnly ? "No meta description" : "Click to add meta description...")}
               </p>
-              <button
-                onClick={() => startEditing("metaDesc", content.metaDesc)}
-                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
-                title="Edit meta description"
-              >
-                <FileText className="w-3 h-3" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => startEditing("metaDesc", content.metaDesc)}
+                  className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-primary text-primary-foreground rounded"
+                  title="Edit meta description"
+                >
+                  <FileText className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
 
@@ -473,7 +489,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
                 </div>
               ) : (
                 <div
-                  className="prose prose-sm max-w-none text-blue-900 cursor-pointer hover:bg-blue-100/50 rounded p-1 -m-1 transition-colors group relative"
+                  className={`prose prose-sm max-w-none text-blue-900 rounded p-1 -m-1 transition-colors ${readOnly ? '' : 'cursor-pointer hover:bg-blue-100/50 group'} relative`}
                   dangerouslySetInnerHTML={{ __html: parsedContent.tldr }}
                   onClick={() => startEditing("tldr", content.tldr)}
                 />
@@ -537,20 +553,22 @@ export function BlogPreviewEditable({ blog, onSave, isSaving }: BlogPreviewEdita
                 </Button>
               </div>
             ) : (
-              <div className="group relative inline-flex items-center gap-1">
+              <div className={`${readOnly ? '' : 'group'} relative inline-flex items-center gap-1`}>
                 <p
-                  className="text-green-700 text-sm cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20 rounded px-1 -mx-1 transition-colors"
+                  className={`text-green-700 text-sm rounded px-1 -mx-1 transition-colors ${readOnly ? '' : 'cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/20'}`}
                   onClick={() => startEditing("permalink", content.permalink)}
                 >
                   example.com/{content.permalink || "page-slug"}
                 </p>
-                <button
-                  onClick={() => startEditing("permalink", content.permalink)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-green-600 text-white rounded"
-                  title="Edit permalink"
-                >
-                  <Link2 className="w-2.5 h-2.5" />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => startEditing("permalink", content.permalink)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 bg-green-600 text-white rounded"
+                    title="Edit permalink"
+                  >
+                    <Link2 className="w-2.5 h-2.5" />
+                  </button>
+                )}
               </div>
             )}
             <p className="text-sm text-gray-600 mt-1">

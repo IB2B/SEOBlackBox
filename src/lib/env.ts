@@ -56,7 +56,7 @@ export function getEnv(): EnvConfig {
 
   // Log warnings in development for missing optional variables
   if (!isProduction && missing.length > 0) {
-    console.warn(`WARNING: Missing environment variables: ${missing.join(", ")}`);
+    // Dev warning: Missing environment variables - suppressed in production
   }
 
   return cachedEnv;

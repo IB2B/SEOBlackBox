@@ -72,7 +72,7 @@ export function LoginForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
+              <Label htmlFor="email" required>
                 Email Address
               </Label>
               <Input
@@ -84,8 +84,8 @@ export function LoginForm() {
                 onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
                 required
                 disabled={isLoading}
-                icon={<Mail className="w-4 h-4" />}
-                className={`h-12 ${touched.email && !validation.email.valid ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                icon={<Mail className="w-5 h-5" />}
+                error={touched.email && !validation.email.valid}
                 aria-invalid={touched.email && !validation.email.valid}
                 aria-describedby={touched.email && !validation.email.valid ? "email-error" : undefined}
               />
@@ -99,7 +99,7 @@ export function LoginForm() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">
+                <Label htmlFor="password" required>
                   Password
                 </Label>
                 <Link
@@ -118,8 +118,7 @@ export function LoginForm() {
                 onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
                 required
                 disabled={isLoading}
-                icon={<Lock className="w-4 h-4" />}
-                className="h-12"
+                icon={<Lock className="w-5 h-5" />}
               />
             </div>
           </CardContent>

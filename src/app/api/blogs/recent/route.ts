@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { baserow } from "@/lib/baserow";
+import { logger } from "@/lib/logger";
 
 // GET /api/blogs/recent - Get most recent blogs
 export async function GET(request: Request) {
@@ -22,11 +23,11 @@ export async function GET(request: Request) {
       data: blogs,
     });
   } catch (error) {
-    console.error("Get recent blogs error:", error);
+    logger.apiError("GET /api/blogs/recent", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get recent blogs",
+        error: "Failed to get recent blogs",
       },
       { status: 500 }
     );

@@ -9,11 +9,11 @@ import { ROUTES } from "@/lib/constants";
 import {
   Menu,
   LogOut,
-  User,
   Search,
   ChevronDown,
   X,
 } from "lucide-react";
+import { NotificationToggle } from "@/components/notifications";
 import { useState, useRef, useEffect, FormEvent } from "react";
 
 export function Header() {
@@ -114,6 +114,9 @@ export function Header() {
 
         {/* Right Section */}
         <div className="flex items-center gap-2">
+          {/* Notification Toggle */}
+          <NotificationToggle />
+
           {/* Mobile Search Toggle */}
           <button
             onClick={() => setShowMobileSearch(true)}
@@ -159,14 +162,6 @@ export function Header() {
                 <div className="p-4 border-b border-border/50">
                   <p className="font-medium truncate">{user?.name || "User"}</p>
                   <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
-                </div>
-
-                {/* Menu Items */}
-                <div className="p-2">
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors">
-                    <User className="w-4 h-4" />
-                    Profile Settings
-                  </button>
                 </div>
 
                 {/* Logout */}
