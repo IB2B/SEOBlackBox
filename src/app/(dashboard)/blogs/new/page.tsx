@@ -1,123 +1,107 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dropdown } from "@/components/ui/dropdown";
+import { ComboBox } from "@/components/ui/combobox";
 import { Card, CardContent } from "@/components/ui/card";
-import { ROUTES, PROJECTS, LANGUAGES, COUNTRY_CODES, NTOC_OPTIONS } from "@/lib/constants";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ROUTES } from "@/lib/constants";
 import {
   Loader2,
   Sparkles,
   FileText,
-  Globe,
-  MapPin,
-  Layers,
-  Zap,
   ArrowLeft,
-  Rocket,
   CheckCircle2,
-  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
+
+interface ParkingBlog {
+  id: number;
+  Keywords: string;
+  Project: string;
+  Language: string;
+}
 
 export default function NewBlogPage() {
   const router = useRouter();
-  const [keyword, setKeyword] = useState("");
-  const [project, setProject] = useState("");
-  const [language, setLanguage] = useState("English");
-  const [countryCode, setCountryCode] = useState("us");
-  const [ntoc, setNtoc] = useState("5");
-  const [needsApproval, setNeedsApproval] = useState(false);
+  const [parkingBlogs, setParkingBlogs] = useState<ParkingBlog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedBlogId, setSelectedBlogId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedLang = LANGUAGES.find((l) => l.value === language);
-  const selectedProject = PROJECTS.find((p) => p.value === project);
+  // Fetch PARKING keywords on mount
+  useEffect(() => {
+    const fetchParking = async () => {
+      try {
+        const response = await fetch("/api/blogs?status=5133&size=200", {
+          credentials: "include",
+        });
+        const data = await response.json();
+        if (data.success) {
+          setParkingBlogs(data.data.blogs);
+        }
+      } catch {
+        toast.error("Failed to load parking keywords");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchParking();
+  }, []);
+
+  const selectedBlog = parkingBlogs.find(
+    (b) => String(b.id) === selectedBlogId
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!keyword.trim()) {
-      toast.error("Keyword is required");
-      return;
-    }
-
-    if (!project) {
-      toast.error("Please select a project");
+    if (!selectedBlogId) {
+      toast.error("Please select a keyword");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      toast.loading("Creating keyword...", { id: "create-blog" });
+      toast.loading("Starting Auto Pilot...", { id: "auto-pilot" });
 
-      const response = await fetch("/api/blogs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await fetch(`/api/blogs/${selectedBlogId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          Keywords: keyword.trim(),
-          Project: selectedProject?.label || project,
-          Language: language,
-          Language_Code: selectedLang?.code || "en",
-          Country_Code: countryCode,
-          NTOC: ntoc,
-          STEPS: "Parking",
-          "Needs Approval?": needsApproval,
-        }),
+        body: JSON.stringify({ STEPS: "Auto Pilot" }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        const blogId = data.data.id;
-        toast.success("Keyword created!", { id: "create-blog" });
-
-        for (let i = 3; i > 0; i--) {
-          setCountdown(i);
-          toast.loading(`Starting Auto Pilot in ${i}...`, { id: "auto-pilot" });
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-        setCountdown(null);
-
-        const updateResponse = await fetch(`/api/blogs/${blogId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            STEPS: "Auto Pilot",
-          }),
-        });
-
-        if (!updateResponse.ok) {
-          // Failed to set Auto Pilot, continuing anyway
-        }
-
         toast.success("Auto Pilot activated!", { id: "auto-pilot" });
-        router.push(ROUTES.BLOG_EDIT(blogId));
+        router.push(ROUTES.BLOG_EDIT(Number(selectedBlogId)));
       } else {
-        toast.error(data.error || "Failed to create blog", { id: "create-blog" });
-        setError(data.error || "Failed to create blog");
+        toast.error(data.error || "Failed to start Auto Pilot", {
+          id: "auto-pilot",
+        });
+        setError(data.error || "Failed to start Auto Pilot");
       }
-    } catch (err) {
-      toast.error("Failed to create blog", { id: "create-blog" });
-      setError("Failed to create blog");
+    } catch {
+      toast.error("Failed to start Auto Pilot", { id: "auto-pilot" });
+      setError("Failed to start Auto Pilot");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Build options for the combobox
+  const keywordOptions = parkingBlogs.map((b) => ({
+    value: String(b.id),
+    label: `${b.Keywords}  —  ${b.Project}`,
+  }));
 
   return (
     <div className="space-y-6">
@@ -128,7 +112,10 @@ export default function NewBlogPage() {
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl" />
 
         <div className="relative z-10">
-          <Link href={ROUTES.BLOGS} className="inline-flex items-center gap-2 text-violet-300 hover:text-white text-sm mb-4 transition-colors">
+          <Link
+            href={ROUTES.BLOGS}
+            className="inline-flex items-center gap-2 text-violet-300 hover:text-white text-sm mb-4 transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
             Back to Blogs
           </Link>
@@ -138,9 +125,9 @@ export default function NewBlogPage() {
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Create New Blog</h1>
+              <h1 className="text-2xl font-bold">Add Blog</h1>
               <p className="text-violet-200/80 text-sm">
-                Enter a keyword and let AI generate your content
+                Select a keyword from parking to start Auto Pilot
               </p>
             </div>
           </div>
@@ -150,152 +137,95 @@ export default function NewBlogPage() {
       {/* Form Card */}
       <Card className="border-0 shadow-xl">
         <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-                <div className="p-1 bg-red-100 rounded-full">
-                  <span className="text-red-500 text-lg">!</span>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+              <span className="ml-3 text-muted-foreground">
+                Loading parking keywords...
+              </span>
+            </div>
+          ) : parkingBlogs.length === 0 ? (
+            <div className="text-center py-12 space-y-4">
+              <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground">
+                No keywords in parking. Add keywords first.
+              </p>
+              <Link href={ROUTES.KEYWORDS}>
+                <Button>Go to Keywords</Button>
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                  <div className="p-1 bg-red-100 rounded-full">
+                    <span className="text-red-500 text-lg">!</span>
+                  </div>
+                  {error}
                 </div>
-                {error}
-              </div>
-            )}
+              )}
 
-            {/* Row 1: Keyword & Project */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Keyword Selection */}
               <div className="space-y-2">
-                <Label htmlFor="keyword" required>Target Keyword</Label>
-                <Input
+                <Label htmlFor="keyword" required>
+                  Select Keyword
+                </Label>
+                <ComboBox
                   id="keyword"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="e.g., best coffee makers 2024"
-                  required
+                  value={selectedBlogId}
+                  onChange={setSelectedBlogId}
+                  placeholder="Search parking keywords..."
                   disabled={isSubmitting}
                   icon={<FileText className="w-5 h-5" />}
+                  options={keywordOptions}
                 />
+                <p className="text-sm text-muted-foreground">
+                  {parkingBlogs.length} keyword
+                  {parkingBlogs.length !== 1 ? "s" : ""} in parking
+                </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="project" required>Project</Label>
-                <Dropdown
-                  id="project"
-                  value={project}
-                  onChange={setProject}
-                  placeholder="Select a project"
-                  disabled={isSubmitting}
-                  icon={<Rocket className="w-5 h-5" />}
-                  options={PROJECTS.map((p) => ({ value: p.value, label: p.label }))}
-                />
-              </div>
-            </div>
-
-            {/* Row 2: Language, Country, Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Dropdown
-                  id="language"
-                  value={language}
-                  onChange={setLanguage}
-                  disabled={isSubmitting}
-                  icon={<Globe className="w-5 h-5" />}
-                  options={LANGUAGES.map((lang) => ({ value: lang.value, label: lang.label }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Dropdown
-                  id="country"
-                  value={countryCode}
-                  onChange={setCountryCode}
-                  disabled={isSubmitting}
-                  icon={<MapPin className="w-5 h-5" />}
-                  options={COUNTRY_CODES.map((c) => ({ value: c.value, label: c.label }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ntoc">Sections</Label>
-                <Dropdown
-                  id="ntoc"
-                  value={ntoc}
-                  onChange={setNtoc}
-                  disabled={isSubmitting}
-                  icon={<Layers className="w-5 h-5" />}
-                  options={NTOC_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
-                />
-              </div>
-            </div>
-
-            {/* Options Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Auto Pilot Info */}
-              <div className="p-4 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20 rounded-xl flex items-center">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-violet-500/20 rounded-lg shrink-0">
-                    <Zap className="w-4 h-4 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-violet-900 dark:text-violet-100">Auto Pilot Mode</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Your blog will automatically start generating content using AI.
-                    </p>
-                  </div>
+              {/* Selected keyword info */}
+              {selectedBlog && (
+                <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl space-y-2">
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Keyword:</span>{" "}
+                    <span className="font-medium">{selectedBlog.Keywords}</span>
+                  </p>
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Project:</span>{" "}
+                    <span className="font-medium">{selectedBlog.Project}</span>
+                  </p>
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Language:</span>{" "}
+                    <span className="font-medium">{selectedBlog.Language}</span>
+                  </p>
                 </div>
-              </div>
-
-              {/* Needs Approval */}
-              <div className={`p-4 rounded-xl border transition-colors ${
-                needsApproval
-                  ? "bg-amber-500/10 border-amber-500/30"
-                  : "bg-muted/30 border-border/50 hover:border-amber-500/30"
-              }`}>
-                <div className="flex items-start gap-3">
-                  <div className="pt-0.5">
-                    <Checkbox
-                      id="needsApproval"
-                      checked={needsApproval}
-                      onChange={(e) => setNeedsApproval(e.target.checked)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label htmlFor="needsApproval" className="flex items-center gap-2 font-medium text-sm cursor-pointer">
-                      <ShieldCheck className={`w-4 h-4 ${needsApproval ? "text-amber-600" : "text-muted-foreground"}`} />
-                      Needs Approval
-                    </label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Require manual review before publishing
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full h-14 text-base bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  {countdown ? `Starting in ${countdown}...` : "Creating..."}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5 mr-2" />
-                  Create Blog
-                </>
               )}
-            </Button>
-          </form>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full h-14 text-base bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+                disabled={isSubmitting || !selectedBlogId}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Starting Auto Pilot...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 mr-2" />
+                    Start Auto Pilot
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
-
     </div>
   );
 }

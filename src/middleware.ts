@@ -7,6 +7,7 @@ const publicRoutes = ["/login", "/register"];
 const publicApiRoutes = [
   "/api/auth/login",
   "/api/auth/register",
+  "/api/cron/",
 ];
 
 export async function middleware(request: NextRequest) {

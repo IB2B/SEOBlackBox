@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,12 +101,6 @@ export function LoginForm() {
                 <Label htmlFor="password" required>
                   Password
                 </Label>
-                <Link
-                  href="#"
-                  className="text-xs text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
               </div>
               <Input
                 id="password"

@@ -189,6 +189,7 @@ export const ROUTES = {
   BLOG_NEW: "/blogs/new",
   BLOG_EDIT: (id: number) => `/blogs/${id}/edit`,
   BLOG_VIEW: (id: number) => `/blogs/${id}`,
+  KEYWORDS: "/keywords",
   PROJECTS: "/projects",
 } as const;
 
@@ -200,6 +201,7 @@ export const API_ROUTES = {
   },
   BLOGS: "/api/blogs",
   BLOG: (id: number) => `/api/blogs/${id}`,
+  KEYWORDS_BULK: "/api/keywords/bulk",
   PROJECTS: "/api/projects",
   STATS: "/api/stats",
 } as const;

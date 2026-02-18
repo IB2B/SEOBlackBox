@@ -10,6 +10,7 @@ import {
   FileText,
   FolderKanban,
   Plus,
+  ListPlus,
   ChevronLeft,
   ChevronRight,
   X,
@@ -34,6 +35,12 @@ const navItems = [
     label: "Add Blog",
     href: ROUTES.BLOG_NEW,
     icon: Plus,
+    exact: true,
+  },
+  {
+    label: "Keywords",
+    href: ROUTES.KEYWORDS,
+    icon: ListPlus,
     exact: true,
   },
   {
