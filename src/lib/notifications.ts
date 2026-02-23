@@ -113,6 +113,30 @@ export function sendBlogPublishedNotification(
 }
 
 /**
+ * Send a blog updated notification (on user save)
+ */
+export function sendBlogUpdatedNotification(
+  blogTitle: string,
+  blogId: number,
+  changedFieldLabels: string[],
+  onNavigate?: (blogId: number) => void
+): Notification | null {
+  const fieldSummary = changedFieldLabels.slice(0, 3).join(", ");
+  const moreCount = changedFieldLabels.length > 3
+    ? ` +${changedFieldLabels.length - 3} more`
+    : "";
+
+  return sendNotification("Blog Updated", {
+    body: `${fieldSummary}${moreCount} changed in "${blogTitle}"`,
+    onClick: () => {
+      if (onNavigate) {
+        onNavigate(blogId);
+      }
+    },
+  });
+}
+
+/**
  * Send a blog error notification
  */
 export function sendBlogErrorNotification(

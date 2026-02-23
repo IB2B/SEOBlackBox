@@ -14,9 +14,112 @@ import { BlogEditor } from "@/components/blogs/BlogEditor";
 import { StatusBadge } from "@/components/blogs/StatusBadge";
 import { useBlogStream } from "@/hooks/useBlogStream";
 import { ROUTES, USER_EDITABLE_STATUSES, BLOG_STATUSES } from "@/lib/constants";
+import { useNotificationContext } from "@/components/notifications";
+import { sendBlogUpdatedNotification } from "@/lib/notifications";
 import type { Blog, BlogStatus } from "@/types";
 import { ArrowLeft, Save, Send, Loader2, ChevronDown, ChevronUp, Radio, CheckCircle2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Human-readable labels for Baserow field names
+const FIELD_LABELS: Record<string, string> = {
+  TITLE: "Title",
+  Permalink: "Permalink",
+  "META DESC": "Meta Description",
+  INTRODUCTION: "Introduction",
+  CONCLUSION: "Conclusion",
+  "TL;DR": "TL;DR",
+  "Section 1": "Section 1",
+  "Section 2": "Section 2",
+  "Section 3": "Section 3",
+  "Section 4": "Section 4",
+  "Section 5": "Section 5",
+  "Section 6": "Section 6",
+  "Section 7": "Section 7",
+  FAQ: "FAQ",
+  "images URL": "Image URL",
+  "image 3": "Image 3",
+  STEPS: "Status",
+  "Needs Approval?": "Needs Approval",
+  "Article Category": "Category",
+};
+
+interface SavedState {
+  title: string;
+  permalink: string;
+  metaDesc: string;
+  introduction: string;
+  conclusion: string;
+  tldr: string;
+  section1: string;
+  section2: string;
+  section3: string;
+  section4: string;
+  section5: string;
+  section6: string;
+  section7: string;
+  faq: string;
+  imagesUrl: string;
+  image3: string;
+  steps: BlogStatus;
+  needsApproval: boolean;
+  articleCategory: string;
+}
+
+function blogToSavedState(b: Blog): SavedState {
+  return {
+    title: b.TITLE || "",
+    permalink: b.Permalink || "",
+    metaDesc: b["META DESC"] || "",
+    introduction: b.INTRODUCTION || "",
+    conclusion: b.CONCLUSION || "",
+    tldr: b["TL;DR"] || "",
+    section1: b["Section 1"] || "",
+    section2: b["Section 2"] || "",
+    section3: b["Section 3"] || "",
+    section4: b["Section 4"] || "",
+    section5: b["Section 5"] || "",
+    section6: b["Section 6"] || "",
+    section7: b["Section 7"] || "",
+    faq: b.FAQ || "",
+    imagesUrl: b["images URL"] || "",
+    image3: b["image 3"] || "",
+    steps: b.STEPS,
+    needsApproval: b["Needs Approval?"] || false,
+    articleCategory: b["Article Category"] || "",
+  };
+}
+
+function getChangedFieldLabels(saved: SavedState, current: SavedState): string[] {
+  const changed: string[] = [];
+  const mappings: { key: keyof SavedState; baserowField: string }[] = [
+    { key: "title", baserowField: "TITLE" },
+    { key: "permalink", baserowField: "Permalink" },
+    { key: "metaDesc", baserowField: "META DESC" },
+    { key: "introduction", baserowField: "INTRODUCTION" },
+    { key: "conclusion", baserowField: "CONCLUSION" },
+    { key: "tldr", baserowField: "TL;DR" },
+    { key: "section1", baserowField: "Section 1" },
+    { key: "section2", baserowField: "Section 2" },
+    { key: "section3", baserowField: "Section 3" },
+    { key: "section4", baserowField: "Section 4" },
+    { key: "section5", baserowField: "Section 5" },
+    { key: "section6", baserowField: "Section 6" },
+    { key: "section7", baserowField: "Section 7" },
+    { key: "faq", baserowField: "FAQ" },
+    { key: "imagesUrl", baserowField: "images URL" },
+    { key: "image3", baserowField: "image 3" },
+    { key: "steps", baserowField: "STEPS" },
+    { key: "needsApproval", baserowField: "Needs Approval?" },
+    { key: "articleCategory", baserowField: "Article Category" },
+  ];
+
+  for (const { key, baserowField } of mappings) {
+    if (saved[key] !== current[key]) {
+      changed.push(FIELD_LABELS[baserowField] || baserowField);
+    }
+  }
+  return changed;
+}
 
 interface SectionEditorProps {
   title: string;
@@ -89,6 +192,18 @@ export default function EditBlogPage() {
   const [needsApproval, setNeedsApproval] = useState(false);
   const [articleCategory, setArticleCategory] = useState("");
 
+  // Notification context for push notifications on save
+  const { isEnabled: notifEnabled, permission: notifPermission } = useNotificationContext();
+
+  // Track last-saved state for computing field diffs on save
+  const savedStateRef = useRef<SavedState | null>(null);
+
+  const captureFormState = useCallback((): SavedState => ({
+    title, permalink, metaDesc, introduction, conclusion, tldr,
+    section1, section2, section3, section4, section5, section6, section7,
+    faq, imagesUrl, image3, steps, needsApproval, articleCategory,
+  }), [title, permalink, metaDesc, introduction, conclusion, tldr, section1, section2, section3, section4, section5, section6, section7, faq, imagesUrl, image3, steps, needsApproval, articleCategory]);
+
   // Update ALL form fields from blog data
   const updateFormFromBlog = useCallback((b: Blog) => {
     // Update ALL fields unconditionally
@@ -126,27 +241,6 @@ export default function EditBlogPage() {
       "Conclusion": { field: "CONCLUSION", label: "Conclusion" },
     };
 
-    const fieldLabels: Record<string, string> = {
-      "TITLE": "Title",
-      "Permalink": "Permalink",
-      "META DESC": "Meta Description",
-      "INTRODUCTION": "Introduction",
-      "CONCLUSION": "Conclusion",
-      "TL;DR": "TL;DR",
-      "Section 1": "Section 1",
-      "Section 2": "Section 2",
-      "Section 3": "Section 3",
-      "Section 4": "Section 4",
-      "Section 5": "Section 5",
-      "Section 6": "Section 6",
-      "Section 7": "Section 7",
-      "FAQ": "FAQ",
-      "images URL": "Image 1",
-      "image 1": "Image 1",
-      "image 3": "Image 3",
-      "Article Category": "Category",
-    };
-
     // Show toast when step changes
     if (prevStep && prevStep !== newBlog.STEPS) {
       toast.info(`Generation step: ${newBlog.STEPS}`, { duration: 2000 });
@@ -163,13 +257,16 @@ export default function EditBlogPage() {
 
     // Show toast for content field updates
     if (changedFields.length > 0) {
-      const labels = changedFields.map(f => fieldLabels[f] || f).slice(0, 3);
+      const labels = changedFields.map(f => FIELD_LABELS[f] || f).slice(0, 3);
       const moreCount = changedFields.length > 3 ? ` +${changedFields.length - 3} more` : "";
       toast.success(`Updated: ${labels.join(", ")}${moreCount}`, { duration: 2000 });
     }
 
     // Update ALL fields from polling
     updateFormFromBlog(newBlog);
+
+    // Update saved state baseline so save-diff only captures user changes after this point
+    savedStateRef.current = blogToSavedState(newBlog);
   }, [updateFormFromBlog]);
 
   // Check if blog is finished (BODY is filled)
@@ -183,67 +280,127 @@ export default function EditBlogPage() {
     onUpdate: handlePollingUpdate,
   });
 
-  // Refs for auto-save (must be before useEffects that use them)
-  const prevImageUrlRef = useRef<string>("");
-  const imageDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref for auto-save debounce
+  const autoSaveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoSavingRef = useRef(false);
 
   // Update blog state from polling (for BODY check and other metadata)
   useEffect(() => {
     if (polledBlog) {
       setBlog(polledBlog);
       if (isLoading) {
-        // Initial load - update all fields and set initial image URL ref
+        // Initial load - update all fields
         updateFormFromBlog(polledBlog);
-        prevImageUrlRef.current = polledBlog["images URL"] || "";
+        // Snapshot the initial state for auto-save diff
+        savedStateRef.current = blogToSavedState(polledBlog);
         setIsLoading(false);
       }
     }
   }, [polledBlog, isLoading, updateFormFromBlog]);
 
+  // Auto-save ALL fields to Baserow on change (debounced 2 seconds)
   useEffect(() => {
-    // Skip if loading or no blogId or same as previous
-    if (isLoading || isNaN(blogId) || imagesUrl === prevImageUrlRef.current) {
+    // Skip if loading, no blogId, published, or currently generating
+    if (isLoading || isNaN(blogId) || steps === "PUBLISH" || isGenerating) {
       return;
     }
 
+    // Skip if no saved state yet (initial load not complete)
+    if (!savedStateRef.current) return;
+
+    // Compute what changed since last save
+    const currentState: SavedState = {
+      title, permalink, metaDesc, introduction, conclusion, tldr,
+      section1, section2, section3, section4, section5, section6, section7,
+      faq, imagesUrl, image3, steps, needsApproval, articleCategory,
+    };
+
+    const changedLabels = getChangedFieldLabels(savedStateRef.current, currentState);
+
+    // Nothing changed — skip
+    if (changedLabels.length === 0) return;
+
     // Clear previous debounce
-    if (imageDebounceRef.current) {
-      clearTimeout(imageDebounceRef.current);
+    if (autoSaveDebounceRef.current) {
+      clearTimeout(autoSaveDebounceRef.current);
     }
 
-    // Debounce auto-save (wait 1 second after user stops typing)
-    imageDebounceRef.current = setTimeout(async () => {
-      if (!imagesUrl.trim()) return; // Don't save empty URLs
+    // Debounce auto-save (wait 2 seconds after user stops typing)
+    autoSaveDebounceRef.current = setTimeout(async () => {
+      if (isAutoSavingRef.current) return; // prevent overlapping saves
+      isAutoSavingRef.current = true;
+
+      // Re-check diff at save time (state may have changed during debounce)
+      const saveState: SavedState = {
+        title, permalink, metaDesc, introduction, conclusion, tldr,
+        section1, section2, section3, section4, section5, section6, section7,
+        faq, imagesUrl, image3, steps, needsApproval, articleCategory,
+      };
+      const finalChangedLabels = getChangedFieldLabels(savedStateRef.current!, saveState);
+      if (finalChangedLabels.length === 0) {
+        isAutoSavingRef.current = false;
+        return;
+      }
 
       try {
         const response = await fetch(`/api/blogs/${blogId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            "images URL": imagesUrl,
-            "image 1": imagesUrl,
+            TITLE: title,
+            Permalink: permalink,
+            "META DESC": metaDesc,
+            INTRODUCTION: introduction,
+            CONCLUSION: conclusion,
+            "TL;DR": tldr,
+            "Section 1": section1,
+            "Section 2": section2,
+            "Section 3": section3,
+            "Section 4": section4,
+            "Section 5": section5,
+            "Section 6": section6,
+            "Section 7": section7,
+            FAQ: faq,
+            "images URL": imagesUrl || null,
+            "image 1": imagesUrl || null,
+            "image 3": image3 || null,
+            STEPS: steps,
+            "Needs Approval?": needsApproval,
+            "Article Category": articleCategory,
           }),
         });
 
         const data = await response.json();
         if (data.success) {
-          toast.success("Image URL saved to Baserow", { duration: 2000 });
-          prevImageUrlRef.current = imagesUrl;
+          const fieldSummary = finalChangedLabels.slice(0, 3).join(", ");
+          const more = finalChangedLabels.length > 3 ? ` +${finalChangedLabels.length - 3} more` : "";
+          toast.success(`Auto-saved: ${fieldSummary}${more}`, { duration: 2000 });
+
+          // Send push notification
+          if (notifEnabled && notifPermission === "granted") {
+            const blogName = title || blog?.Keywords || "Untitled Blog";
+            sendBlogUpdatedNotification(blogName, blogId, finalChangedLabels, (id) => {
+              router.push(ROUTES.BLOG_EDIT(id));
+            });
+          }
+
+          // Update baseline to API response
+          savedStateRef.current = blogToSavedState(data.data);
         }
       } catch (err) {
-        // Auto-save failed silently
+        // Auto-save failed silently — user can still manual save
+      } finally {
+        isAutoSavingRef.current = false;
       }
-    }, 1000);
+    }, 2000);
 
     return () => {
-      if (imageDebounceRef.current) {
-        clearTimeout(imageDebounceRef.current);
+      if (autoSaveDebounceRef.current) {
+        clearTimeout(autoSaveDebounceRef.current);
       }
     };
-  }, [imagesUrl, blogId, isLoading]);
+  }, [title, permalink, metaDesc, introduction, conclusion, tldr, section1, section2, section3, section4, section5, section6, section7, faq, imagesUrl, image3, steps, needsApproval, articleCategory, blogId, isLoading, isGenerating, blog, notifEnabled, notifPermission, router]);
 
   const handleSave = async (newStatus?: BlogStatus) => {
     setIsSaving(true);
@@ -293,6 +450,25 @@ export default function EditBlogPage() {
         } else {
           toast.success("Blog saved successfully!", { id: toastId });
         }
+
+        // Send browser push notification with changed fields
+        if (notifEnabled && notifPermission === "granted" && savedStateRef.current) {
+          const currentState = captureFormState();
+          // If a new status was explicitly set (e.g., Publish), reflect it in the diff
+          if (newStatus) {
+            currentState.steps = newStatus;
+          }
+          const changedLabels = getChangedFieldLabels(savedStateRef.current, currentState);
+          if (changedLabels.length > 0) {
+            const blogName = title || blog?.Keywords || "Untitled Blog";
+            sendBlogUpdatedNotification(blogName, blogId, changedLabels, (id) => {
+              router.push(ROUTES.BLOG_EDIT(id));
+            });
+          }
+        }
+
+        // Update saved state baseline to API response
+        savedStateRef.current = blogToSavedState(data.data);
       } else {
         toast.error(data.error || "Failed to save blog", { id: toastId });
         setError(data.error || "Failed to save blog");
