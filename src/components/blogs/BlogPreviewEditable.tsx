@@ -688,6 +688,14 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
             </div>
           )}
 
+          {/* Full BODY - at the top */}
+          {(content.body || editingSection === "body") && (
+            <div className="mb-8 pb-8 border-b">
+              <p className="text-sm font-medium text-muted-foreground mb-4">Full Body Content</p>
+              {renderEditableSection("body", content.body, parsedContent.body)}
+            </div>
+          )}
+
           {/* TL;DR */}
           {(content.tldr || editingSection === "tldr") && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -749,13 +757,6 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
           {/* Conclusion */}
           {renderEditableSection("conclusion", content.conclusion, parsedContent.conclusion)}
 
-          {/* Full BODY */}
-          {(content.body || editingSection === "body") && (
-            <div className="mt-8 pt-8 border-t">
-              <p className="text-sm text-muted-foreground mb-4">Full Body Content:</p>
-              {renderEditableSection("body", content.body, parsedContent.body)}
-            </div>
-          )}
         </article>
 
         {/* SEO Preview */}

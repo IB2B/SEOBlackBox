@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/blogs/StatusBadge";
 import { useBlogStream } from "@/hooks/useBlogStream";
 import { ROUTES, USER_EDITABLE_STATUSES, BLOG_STATUSES } from "@/lib/constants";
 import { useNotificationContext } from "@/components/notifications";
-import { sendBlogUpdatedNotification } from "@/lib/notifications";
+import { sendBlogReadyNotification, sendBlogUpdatedNotification } from "@/lib/notifications";
 import { compileBlogBody } from "@/lib/bodyCompiler";
 import type { Blog, BlogStatus } from "@/types";
 import { ArrowLeft, Loader2, Radio, CheckCircle2, Lock } from "lucide-react";
@@ -60,9 +60,7 @@ export default function EditBlogPage() {
   // Notification context for push notifications on save
   const { isEnabled: notifEnabled, permission: notifPermission } = useNotificationContext();
 
-  // Track accumulated field changes for auto-save
-  const pendingChangesRef = useRef<Partial<Blog>>({});
-  const autoSaveDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Guard against concurrent saves
   const isAutoSavingRef = useRef(false);
 
   // Track the latest blog content for BODY compilation
@@ -80,6 +78,14 @@ export default function EditBlogPage() {
     // Show toast when step changes
     if (prevStep && prevStep !== newBlog.STEPS) {
       toast.info(`Generation step: ${newBlog.STEPS}`, { duration: 2000 });
+
+      // Send "Ready to Publish" push notification when blog reaches Full status
+      if (newBlog.STEPS === "Full" && notifEnabled && notifPermission === "granted") {
+        const blogName = newBlog.TITLE || newBlog.Keywords || "Untitled Blog";
+        sendBlogReadyNotification(blogName, blogId, (id) => {
+          router.push(ROUTES.BLOG_EDIT(id));
+        });
+      }
     }
 
     // Show toast for content field updates
@@ -107,7 +113,7 @@ export default function EditBlogPage() {
       FAQ: newBlog.FAQ,
       CONCLUSION: newBlog.CONCLUSION,
     };
-  }, [updateSidebarFromBlog]);
+  }, [updateSidebarFromBlog, blogId, notifEnabled, notifPermission, router]);
 
   // Check if blog is finished (BODY is filled)
   const isBlogFinished = !!(blog?.BODY && blog.BODY.trim() !== "");
@@ -163,109 +169,70 @@ export default function EditBlogPage() {
     });
   }, []);
 
-  // Auto-save: called when BlogPreviewEditable fires onFieldChange
-  const handleFieldChange = useCallback((updatedContent: Partial<Blog>) => {
+  // Direct save to Baserow: called when BlogPreviewEditable fires onFieldChange (on Apply)
+  const handleFieldChange = useCallback(async (updatedContent: Partial<Blog>) => {
     // Skip if published or generating
     if (steps === "PUBLISH" || isGenerating) return;
-
-    // Accumulate changes
-    pendingChangesRef.current = { ...pendingChangesRef.current, ...updatedContent };
+    if (isAutoSavingRef.current) return;
+    isAutoSavingRef.current = true;
 
     // Update latest content ref for BODY compilation
     latestContentRef.current = { ...latestContentRef.current, ...updatedContent };
 
-    // Clear previous debounce
-    if (autoSaveDebounceRef.current) {
-      clearTimeout(autoSaveDebounceRef.current);
+    // Compile BODY from all current sections
+    const compiledBody = compileBody(updatedContent);
+
+    // Build the payload: changed fields + compiled BODY + sidebar fields
+    const payload: Record<string, unknown> = {
+      ...updatedContent,
+      BODY: compiledBody,
+      STEPS: steps,
+      "Needs Approval?": needsApproval,
+      "Article Category": articleCategory,
+    };
+
+    // Also sync image fields
+    if (updatedContent["images URL"] !== undefined) {
+      payload["image 1"] = updatedContent["images URL"] || null;
     }
 
-    // Debounce auto-save (2 seconds after last change)
-    autoSaveDebounceRef.current = setTimeout(async () => {
-      if (isAutoSavingRef.current) return;
-      isAutoSavingRef.current = true;
+    const toastId = `save-field-${Date.now()}`;
+    const changedLabels = Object.keys(updatedContent)
+      .map(f => FIELD_LABELS[f] || f)
+      .slice(0, 3);
+    const more = Object.keys(updatedContent).length > 3
+      ? ` +${Object.keys(updatedContent).length - 3} more`
+      : "";
+    toast.loading(`Saving ${changedLabels.join(", ")}${more}...`, { id: toastId });
 
-      const changes = { ...pendingChangesRef.current };
-      pendingChangesRef.current = {};
+    try {
+      const response = await fetch(`/api/blogs/${blogId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
 
-      if (Object.keys(changes).length === 0) {
-        isAutoSavingRef.current = false;
-        return;
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Saved: ${changedLabels.join(", ")}${more}`, { id: toastId, duration: 2000 });
+
+        // Update blog state from API response
+        setBlog(data.data);
+      } else {
+        toast.error(`Failed to save: ${data.error || "Unknown error"}`, { id: toastId });
       }
-
-      // Compile BODY from all current sections
-      const compiledBody = compileBody(changes);
-
-      // Build the payload: changed fields + compiled BODY + sidebar fields
-      const payload: Record<string, unknown> = {
-        ...changes,
-        BODY: compiledBody,
-        STEPS: steps,
-        "Needs Approval?": needsApproval,
-        "Article Category": articleCategory,
-      };
-
-      // Also sync image fields
-      if (changes["images URL"] !== undefined) {
-        payload["image 1"] = changes["images URL"] || null;
-      }
-
-      try {
-        const response = await fetch(`/api/blogs/${blogId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          const changedLabels = Object.keys(changes)
-            .map(f => FIELD_LABELS[f] || f)
-            .slice(0, 3);
-          const more = Object.keys(changes).length > 3
-            ? ` +${Object.keys(changes).length - 3} more`
-            : "";
-          toast.success(`Auto-saved: ${changedLabels.join(", ")}${more}`, { duration: 2000 });
-
-          // Update blog state from API response
-          setBlog(data.data);
-
-          // Send push notification
-          if (notifEnabled && notifPermission === "granted") {
-            const blogName = data.data.TITLE || blog?.Keywords || "Untitled Blog";
-            const allChangedLabels = Object.keys(changes).map(f => FIELD_LABELS[f] || f);
-            sendBlogUpdatedNotification(blogName, blogId, allChangedLabels, (id) => {
-              router.push(ROUTES.BLOG_EDIT(id));
-            });
-          }
-        }
-      } catch {
-        // Auto-save failed silently — user can still manual save
-      } finally {
-        isAutoSavingRef.current = false;
-      }
-    }, 2000);
-  }, [blogId, steps, needsApproval, articleCategory, isGenerating, compileBody, blog, notifEnabled, notifPermission, router]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveDebounceRef.current) {
-        clearTimeout(autoSaveDebounceRef.current);
-      }
-    };
-  }, []);
+    } catch {
+      toast.error("Failed to save to Baserow", { id: toastId });
+    } finally {
+      isAutoSavingRef.current = false;
+    }
+  }, [blogId, steps, needsApproval, articleCategory, isGenerating, compileBody]);
 
   // Manual save (Save/Publish button)
   const handleSave = useCallback(async (updatedBlog: Partial<Blog>, newStatus?: BlogStatus) => {
     setIsSaving(true);
     setError(null);
-
-    // Cancel any pending auto-save
-    if (autoSaveDebounceRef.current) {
-      clearTimeout(autoSaveDebounceRef.current);
-    }
-    pendingChangesRef.current = {};
 
     const toastId = newStatus === "PUBLISH" ? "publish-blog" : "save-blog";
     toast.loading(newStatus === "PUBLISH" ? "Publishing..." : "Saving...", { id: toastId });
