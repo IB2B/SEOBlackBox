@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { marked } from "marked";
 import type { Blog, BlogStatus } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,11 +40,33 @@ function preprocessMarkdown(content: string): string {
   return processed;
 }
 
+// Map local content keys to Baserow field names
+const CONTENT_KEY_TO_BASEROW: Record<string, string> = {
+  tldr: "TL;DR",
+  introduction: "INTRODUCTION",
+  section1: "Section 1",
+  section2: "Section 2",
+  section3: "Section 3",
+  section4: "Section 4",
+  section5: "Section 5",
+  section6: "Section 6",
+  section7: "Section 7",
+  faq: "FAQ",
+  conclusion: "CONCLUSION",
+  body: "BODY",
+  imageUrl: "images URL",
+  title: "TITLE",
+  metaDesc: "META DESC",
+  permalink: "Permalink",
+};
+
 interface BlogPreviewEditableProps {
   blog: Blog;
   onSave: (updatedBlog: Partial<Blog>, newStatus?: BlogStatus) => Promise<void>;
+  onFieldChange?: (updatedContent: Partial<Blog>) => void;
   isSaving: boolean;
   readOnly?: boolean;
+  showSaveButtons?: boolean;
 }
 
 type EditableSection =
@@ -86,11 +108,14 @@ function getImageUrl(url: string): string {
   return url;
 }
 
-export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }: BlogPreviewEditableProps) {
+export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, readOnly = false, showSaveButtons = true }: BlogPreviewEditableProps) {
   const [editingSection, setEditingSection] = useState<EditableSection>(null);
   const [editContent, setEditContent] = useState("");
   const [imageError, setImageError] = useState(false);
   const [lastImageUrl, setLastImageUrl] = useState("");
+
+  // Track the blog.id to detect when a different blog is loaded
+  const blogIdRef = useRef(blog.id);
 
   // Local state for all editable content
   const [content, setContent] = useState({
@@ -112,6 +137,74 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
     metaDesc: blog["META DESC"] || "",
     permalink: blog.Permalink || "",
   });
+
+  // Sync polling updates into internal state — only for fields not currently being edited
+  useEffect(() => {
+    // If a completely different blog, reset everything
+    if (blog.id !== blogIdRef.current) {
+      blogIdRef.current = blog.id;
+      setContent({
+        tldr: blog["TL;DR"] || "",
+        introduction: blog.INTRODUCTION || "",
+        section1: blog["Section 1"] || "",
+        section2: blog["Section 2"] || "",
+        section3: blog["Section 3"] || "",
+        section4: blog["Section 4"] || "",
+        section5: blog["Section 5"] || "",
+        section6: blog["Section 6"] || "",
+        section7: blog["Section 7"] || "",
+        faq: blog.FAQ || "",
+        conclusion: blog.CONCLUSION || "",
+        body: blog.BODY || "",
+        imageUrl: blog["images URL"] || blog["image 1"] || "",
+        title: blog.TITLE || "",
+        metaDesc: blog["META DESC"] || "",
+        permalink: blog.Permalink || "",
+      });
+      return;
+    }
+
+    // Update fields that aren't currently being edited
+    setContent(prev => {
+      const updated = { ...prev };
+      const mapping: { key: keyof typeof prev; blogField: keyof Blog }[] = [
+        { key: "tldr", blogField: "TL;DR" },
+        { key: "introduction", blogField: "INTRODUCTION" },
+        { key: "section1", blogField: "Section 1" },
+        { key: "section2", blogField: "Section 2" },
+        { key: "section3", blogField: "Section 3" },
+        { key: "section4", blogField: "Section 4" },
+        { key: "section5", blogField: "Section 5" },
+        { key: "section6", blogField: "Section 6" },
+        { key: "section7", blogField: "Section 7" },
+        { key: "faq", blogField: "FAQ" },
+        { key: "conclusion", blogField: "CONCLUSION" },
+        { key: "body", blogField: "BODY" },
+        { key: "title", blogField: "TITLE" },
+        { key: "metaDesc", blogField: "META DESC" },
+        { key: "permalink", blogField: "Permalink" },
+      ];
+
+      for (const { key, blogField } of mapping) {
+        // Skip the field currently being edited
+        if (editingSection === key) continue;
+        const newVal = (blog[blogField] as string) || "";
+        if (updated[key] !== newVal) {
+          updated[key] = newVal;
+        }
+      }
+
+      // Handle imageUrl separately (maps to "image" editingSection)
+      if (editingSection !== "image") {
+        const newImgUrl = blog["images URL"] || (blog["image 1"] as string) || "";
+        if (updated.imageUrl !== newImgUrl) {
+          updated.imageUrl = newImgUrl;
+        }
+      }
+
+      return updated;
+    });
+  }, [blog, editingSection]);
 
   // Reset image error when URL changes
   useEffect(() => {
@@ -157,6 +250,13 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
       ...prev,
       [editingSection]: editContent,
     }));
+
+    // Notify parent of field change for auto-save
+    const baserowField = CONTENT_KEY_TO_BASEROW[editingSection];
+    if (baserowField && onFieldChange) {
+      onFieldChange({ [baserowField]: editContent } as Partial<Blog>);
+    }
+
     setEditingSection(null);
     setEditContent("");
   };
@@ -253,7 +353,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
   return (
     <div className="space-y-6">
       {/* Save Buttons */}
-      {!readOnly && (
+      {!readOnly && showSaveButtons && (
         <div className="flex justify-end gap-2 sticky top-0 z-10 bg-background py-2">
           <Button
             variant="outline"
@@ -313,6 +413,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
                 <Button size="sm" onClick={() => {
                   setContent(prev => ({ ...prev, imageUrl: editContent }));
                   setImageError(false);
+                  onFieldChange?.({ "images URL": editContent } as Partial<Blog>);
                   setEditingSection(null);
                   setEditContent("");
                 }}>
@@ -393,6 +494,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
                 </Button>
                 <Button size="sm" onClick={() => {
                   setContent(prev => ({ ...prev, title: editContent }));
+                  onFieldChange?.({ TITLE: editContent } as Partial<Blog>);
                   setEditingSection(null);
                   setEditContent("");
                 }}>
@@ -437,6 +539,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
                 </Button>
                 <Button size="sm" onClick={() => {
                   setContent(prev => ({ ...prev, metaDesc: editContent }));
+                  onFieldChange?.({ "META DESC": editContent } as Partial<Blog>);
                   setEditingSection(null);
                   setEditContent("");
                 }}>
@@ -546,6 +649,7 @@ export function BlogPreviewEditable({ blog, onSave, isSaving, readOnly = false }
                 </Button>
                 <Button size="sm" className="h-7 px-2" onClick={() => {
                   setContent(prev => ({ ...prev, permalink: editContent }));
+                  onFieldChange?.({ Permalink: editContent } as Partial<Blog>);
                   setEditingSection(null);
                   setEditContent("");
                 }}>

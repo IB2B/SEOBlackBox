@@ -15,7 +15,6 @@
       "Bash(npx tsc:*)",
       "Bash(tree:*)",
       "Bash(ls:*)",
-      "Bash(find \"C:\\Users\\AnasAkil\\desktop\\SEOBlackBox\\src\\app\\(dashboard)\" -type f -name \"*.tsx\")",
       "Bash(npm ls:*)",
       "Bash(npm audit:*)",
       "Bash(npm update:*)",
@@ -23,7 +22,12 @@
       "Bash(npm outdated:*)",
       "Bash(npx next build:*)",
       "Bash(npx vercel:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx next dev)"
     ]
   }
 }
