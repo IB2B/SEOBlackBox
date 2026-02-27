@@ -55,6 +55,8 @@ const CONTENT_KEY_TO_BASEROW: Record<string, string> = {
   conclusion: "CONCLUSION",
   body: "BODY",
   imageUrl: "images URL",
+  image1: "image 1",
+  image3: "image 3",
   title: "TITLE",
   metaDesc: "META DESC",
   permalink: "Permalink",
@@ -83,6 +85,8 @@ type EditableSection =
   | "conclusion"
   | "body"
   | "image"
+  | "image1"
+  | "image3"
   | "title"
   | "metaDesc"
   | "permalink"
@@ -112,6 +116,8 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
   const [editingSection, setEditingSection] = useState<EditableSection>(null);
   const [editContent, setEditContent] = useState("");
   const [imageError, setImageError] = useState(false);
+  const [image1Error, setImage1Error] = useState(false);
+  const [image3Error, setImage3Error] = useState(false);
   const [lastImageUrl, setLastImageUrl] = useState("");
 
   // Track the blog.id to detect when a different blog is loaded
@@ -133,6 +139,8 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
     body: blog.BODY || "",
     // New editable fields - check both "images URL" and "image 1" fields
     imageUrl: blog["images URL"] || blog["image 1"] || "",
+    image1: blog["image 1"] || "",
+    image3: blog["image 3"] || "",
     title: blog.TITLE || "",
     metaDesc: blog["META DESC"] || "",
     permalink: blog.Permalink || "",
@@ -157,6 +165,8 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
         conclusion: blog.CONCLUSION || "",
         body: blog.BODY || "",
         imageUrl: blog["images URL"] || blog["image 1"] || "",
+        image1: blog["image 1"] || "",
+        image3: blog["image 3"] || "",
         title: blog.TITLE || "",
         metaDesc: blog["META DESC"] || "",
         permalink: blog.Permalink || "",
@@ -199,6 +209,22 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
         const newImgUrl = blog["images URL"] || (blog["image 1"] as string) || "";
         if (updated.imageUrl !== newImgUrl) {
           updated.imageUrl = newImgUrl;
+        }
+      }
+
+      // Handle image1 separately
+      if (editingSection !== "image1") {
+        const newImg1 = (blog["image 1"] as string) || "";
+        if (updated.image1 !== newImg1) {
+          updated.image1 = newImg1;
+        }
+      }
+
+      // Handle image3 separately
+      if (editingSection !== "image3") {
+        const newImg3 = (blog["image 3"] as string) || "";
+        if (updated.image3 !== newImg3) {
+          updated.image3 = newImg3;
         }
       }
 
@@ -277,6 +303,8 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
       BODY: content.body,
       // New fields
       "images URL": content.imageUrl,
+      "image 1": content.image1,
+      "image 3": content.image3,
       TITLE: content.title,
       "META DESC": content.metaDesc,
       Permalink: content.permalink,
@@ -334,6 +362,98 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
           >
             <Edit2 className="w-3 h-3" />
           </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderInlineImage = (
+    sectionKey: "image1" | "image3",
+    imageUrl: string,
+    hasError: boolean,
+    setError: (v: boolean) => void,
+    label: string,
+  ) => {
+    const isEditing = editingSection === sectionKey;
+    const baserowField = CONTENT_KEY_TO_BASEROW[sectionKey];
+
+    if (isEditing) {
+      return (
+        <div className="my-6 p-4 border-2 border-primary rounded-lg bg-muted/20">
+          <p className="text-sm font-medium mb-2">{label} URL</p>
+          <div className="flex gap-2">
+            <Input
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="Enter image URL (https://...)"
+              className="flex-1"
+            />
+            <Button variant="ghost" size="sm" onClick={cancelEditing}>
+              <X className="w-4 h-4" />
+            </Button>
+            <Button size="sm" onClick={() => {
+              setContent(prev => ({ ...prev, [sectionKey]: editContent }));
+              setError(false);
+              onFieldChange?.({ [baserowField]: editContent } as Partial<Blog>);
+              setEditingSection(null);
+              setEditContent("");
+            }}>
+              <Save className="w-4 h-4 mr-1" />
+              Apply
+            </Button>
+          </div>
+          {editContent && (
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+              <img
+                src={editContent}
+                alt="Preview"
+                className="max-h-[200px] rounded-lg object-cover"
+                onError={(e) => (e.target as HTMLImageElement).style.display = "none"}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (imageUrl && !hasError) {
+      return (
+        <div className={`my-6 ${readOnly ? '' : 'group'} relative rounded-lg overflow-hidden`}>
+          <p className="text-xs font-medium text-muted-foreground mb-2">{label}</p>
+          <img
+            key={imageUrl}
+            src={imageUrl}
+            alt={label}
+            className={`w-full h-auto max-h-[350px] object-cover rounded-lg ${readOnly ? '' : 'cursor-pointer'}`}
+            onError={() => setError(true)}
+            onClick={() => startEditing(sectionKey, imageUrl)}
+          />
+          {!readOnly && (
+            <button
+              onClick={() => startEditing(sectionKey, imageUrl)}
+              className="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
+              title={`Edit ${label}`}
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // Empty state / error state — clickable placeholder
+    return (
+      <div
+        className={`my-6 w-full h-[120px] bg-gradient-to-br from-muted/50 to-muted/30 border border-dashed border-muted-foreground/20 rounded-lg flex flex-col items-center justify-center gap-2 ${readOnly ? '' : 'cursor-pointer hover:bg-muted/40'} transition-colors`}
+        onClick={() => !readOnly && startEditing(sectionKey, imageUrl)}
+      >
+        <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+        <p className="text-xs text-muted-foreground">
+          {imageUrl && hasError ? `${label} failed to load` : `No ${label}`}
+        </p>
+        {!readOnly && (
+          <p className="text-xs text-muted-foreground/60">Click to {imageUrl ? "edit" : "add"} URL</p>
         )}
       </div>
     );
@@ -603,15 +723,25 @@ export function BlogPreviewEditable({ blog, onSave, onFieldChange, isSaving, rea
           {/* Introduction */}
           {renderEditableSection("introduction", content.introduction, parsedContent.introduction)}
 
+          {/* Image 1 - after introduction */}
+          {renderInlineImage("image1", content.image1, image1Error, setImage1Error, "Image 1")}
+
           {/* Sections */}
-          {sectionsData.map((section, index) => (
-            renderEditableSection(
-              section.key,
-              section.content,
-              parseMarkdown(section.content),
-              `Section ${index + 1}`
-            )
-          ))}
+          {sectionsData.map((section, index) => {
+            const sectionNum = parseInt(section.key.replace("section", ""));
+            return (
+              <div key={section.key}>
+                {renderEditableSection(
+                  section.key,
+                  section.content,
+                  parseMarkdown(section.content),
+                  `Section ${index + 1}`
+                )}
+                {/* Image 3 - after section 3 */}
+                {sectionNum === 3 && renderInlineImage("image3", content.image3, image3Error, setImage3Error, "Image 3")}
+              </div>
+            );
+          })}
 
           {/* FAQ */}
           {renderEditableSection("faq", content.faq, parsedContent.faq)}
